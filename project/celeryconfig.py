@@ -7,6 +7,12 @@ result_serializer = 'json'
 timezone = 'UTC'
 enable_utc = True
 
+# Worker settings
+worker_pool = 'solo'  # Use solo pool for Windows
+worker_prefetch_multiplier = 1
+worker_max_tasks_per_child = 1
+worker_max_memory_per_child = 250000  # 250MB memory limit
+
 # Task routes
 task_routes = {
     'project.tasks.process_video': 'video-processing',
@@ -22,8 +28,3 @@ task_annotations = {
         'rate_limit': '1/m'  # Limit to 1 task per minute
     }
 }
-
-# Worker settings
-worker_prefetch_multiplier = 1  # Process one task at a time
-worker_max_tasks_per_child = 1  # Restart worker after each task
-worker_max_memory_per_child = 250000  # 250MB memory limit

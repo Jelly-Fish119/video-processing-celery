@@ -3,8 +3,8 @@ import cv2
 import os
 from pathlib import Path
 
-@app.task
-def process_video(video_path, output_path):
+@app.task(bind=True)
+def process_video(self, video_path, output_path):
     """
     Process a video file and save the processed version.
     Args:
@@ -14,6 +14,12 @@ def process_video(video_path, output_path):
     try:
         # Open the video file
         cap = cv2.VideoCapture(video_path)
+        if not cap.isOpened():
+            return {
+                'status': 'error',
+                'message': f'Could not open video file: {video_path}',
+                'input_path': video_path
+            }
         
         # Get video properties
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -28,6 +34,7 @@ def process_video(video_path, output_path):
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
         
+        frame_count = 0
         while cap.isOpened():
             ret, frame = cap.read()
             if not ret:
@@ -39,6 +46,11 @@ def process_video(video_path, output_path):
             
             # Write the processed frame
             out.write(processed_frame)
+            frame_count += 1
+            
+            # Update task state
+            self.update_state(state='PROGRESS',
+                            meta={'current': frame_count, 'total': 100})
         
         # Release everything
         cap.release()
@@ -48,7 +60,8 @@ def process_video(video_path, output_path):
             'status': 'success',
             'message': f'Video processed and saved to {output_path}',
             'input_path': video_path,
-            'output_path': output_path
+            'output_path': output_path,
+            'frames_processed': frame_count
         }
         
     except Exception as e:
@@ -58,8 +71,8 @@ def process_video(video_path, output_path):
             'input_path': video_path
         }
 
-@app.task
-def extract_frames(video_path, output_dir, frame_interval=1):
+@app.task(bind=True)
+def extract_frames(self, video_path, output_dir, frame_interval=1):
     """
     Extract frames from a video at specified intervals.
     Args:
@@ -69,7 +82,15 @@ def extract_frames(video_path, output_dir, frame_interval=1):
     """
     try:
         cap = cv2.VideoCapture(video_path)
+        if not cap.isOpened():
+            return {
+                'status': 'error',
+                'message': f'Could not open video file: {video_path}',
+                'input_path': video_path
+            }
+            
         frame_count = 0
+        extracted_count = 0
         
         # Create output directory
         Path(output_dir).mkdir(parents=True, exist_ok=True)
@@ -82,6 +103,11 @@ def extract_frames(video_path, output_dir, frame_interval=1):
             if frame_count % frame_interval == 0:
                 frame_path = os.path.join(output_dir, f'frame_{frame_count:06d}.jpg')
                 cv2.imwrite(frame_path, frame)
+                extracted_count += 1
+                
+                # Update task state
+                self.update_state(state='PROGRESS',
+                                meta={'current': frame_count, 'total': 100})
                 
             frame_count += 1
             
@@ -89,9 +115,11 @@ def extract_frames(video_path, output_dir, frame_interval=1):
         
         return {
             'status': 'success',
-            'message': f'Extracted {frame_count // frame_interval} frames to {output_dir}',
+            'message': f'Extracted {extracted_count} frames to {output_dir}',
             'input_path': video_path,
-            'output_dir': output_dir
+            'output_dir': output_dir,
+            'total_frames': frame_count,
+            'extracted_frames': extracted_count
         }
         
     except Exception as e:

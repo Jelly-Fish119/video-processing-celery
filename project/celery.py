@@ -2,7 +2,7 @@ from celery import Celery
 
 app = Celery('project',
              broker='redis://localhost:6379/0',
-             backend='redis://localhost:6379/1',
+             backend='redis://localhost:6379/0',
              include=['project.tasks']
              )
 
