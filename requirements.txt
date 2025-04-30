@@ -1,0 +1,4 @@
+celery==5.3.6
+redis==5.0.1
+opencv-python==4.9.0.80
+numpy==1.26.4 
